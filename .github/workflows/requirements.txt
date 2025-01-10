@@ -1,0 +1,14 @@
+torch
+torchvision
+torch_geometric
+lightning
+torchmetrics
+pandas
+scikit-learn
+matplotlib
+tqdm
+utm
+osmium
+networkx
+pyproj
+pytest

@@ -1,0 +1,54 @@
+# name: dronalize
+# channels:
+#   # - conda-forge
+#   # - pytorch
+#   # - nvidia
+#   # - pyg
+#   - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main
+#   - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free
+#   - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/r
+#   - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/pro
+#   - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge
+
+ 
+# dependencies:
+#   - python=3.11
+#   - pip
+#   - pytorch=2.2.*
+
+#   - numpy=1.26.*
+#   - lightning
+#   - wandb
+#   - scikit-learn
+#   - tqdm
+#   - seaborn
+#   - matplotlib
+#   - pandas
+#   - utm
+#   - pyproj
+#   - pyarrow
+#   #  - pyg  # PyG has stopped working with conda
+#   - pytorch-cluster
+#   - pytorch-scatter
+#   - pip:
+#       - torch_geometric
+#       - osmium
+#       - networkx
+
+name: dronalize
+# channels:
+#   - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main
+#   - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free
+#   - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - numpy=1.26.*
+  - scikit-learn
+  - tqdm
+  - seaborn
+  - matplotlib
+  - pandas
+  # - utm
+  - pyproj
+  - pyarrow
