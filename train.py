@@ -35,12 +35,20 @@ set_sharing_strategy('file_system')
 
 # Load configuration and import modules
 config = load_config(args.config)
-TorchModel = import_from_module(config["model"]["module"], config["model"]["class"])
 LitDataModule = import_from_module(config["datamodule"]["module"], config["datamodule"]["class"])
 LitModel = import_from_module(config["litmodule"]["module"], config["litmodule"]["class"])
 
+'''base load'''
+# TorchModel = import_from_module(config["model"]["module"], config["model"]["class"])
 
-def main(save_name: str) -> None:
+'''IRLload'''
+TorchModel = import_from_module(config["model1"]["module"], config["model1"]["class"])
+TorchModel2 = import_from_module(config["model2"]["module"], config["model2"]["class"])
+
+
+    
+###method:base,IRL
+def main(save_name: str,method="IRL") -> None:
     ds = config["dataset"]
     ckpt_path = Path("saved_models") / ds / save_name
 
@@ -89,8 +97,14 @@ def main(save_name: str) -> None:
         logger = WandbLogger(project="dronalize", name=run_name)
 
     # Setup model, datamodule and trainer
-    net = TorchModel(config["model"])
-    model = LitModel(net, config["training"])
+    if method=="base":
+        net = TorchModel(config["model"])   
+        model = LitModel(net, config["training"])
+    else:
+        IRLRewardModel = TorchModel(config["model1"])
+        IRLTrajectoryPredictor = TorchModel2(config["model2"])  
+        model= LitModel(IRLRewardModel,IRLTrajectoryPredictor,config["training"])
+    
 
     if args.root:
         config["datamodule"]["root"] = args.root
@@ -113,8 +127,10 @@ def main(save_name: str) -> None:
 
 if __name__ == "__main__":
     seed_everything(args.seed, workers=True)
-
-    mdl_name = config["model"]["class"]
+    if config["experiment_name"]=="IRL":
+        mdl_name = config["model1"]["class"]
+    else:
+        mdl_name = config["model"]["class"]
     ds_name = config["dataset"]
     add_name = f"-{args.add_name}" if args.add_name else ""
 

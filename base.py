@@ -16,10 +16,12 @@ import torch
 import lightning.pytorch as pl
 
 from torch import nn
+import torch.nn.functional as F
 from torch_geometric.data import HeteroData
 from torch_geometric.nn import radius, knn_graph
 from torch_geometric.utils import to_undirected
 
+from models.IRLmodel import IRLRewardModel,IRLTrajectoryPredictor
 from metrics import MinADE, MinFDE, MinAPDE, MissRate, CollisionRate
 
 
@@ -108,3 +110,95 @@ class LitModel(pl.LightningModule):
     def configure_optimizers(self) -> torch.optim.Optimizer:
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
         return optimizer
+
+
+class IRLLitModel(pl.LightningModule):
+    def __init__(self, reward_model: nn.Module, trajectory_predictor: nn.Module, config: dict):
+        super().__init__()
+        self.reward_model = reward_model
+        self.trajectory_predictor = trajectory_predictor
+        self.dataset = config["dataset"]
+        self.max_epochs = config["epochs"]
+        self.learning_rate = config["lr"]
+
+        self.save_hyperparameters(ignore=['model'])
+
+        self.min_ade = MinADE()
+        self.min_fde = MinFDE()
+        self.min_apde = MinAPDE()
+        self.mr = MissRate()
+        self.cr = CollisionRate()
+
+    def post_process(self, data: HeteroData) -> HeteroData:
+        pos = data['agent']['inp_pos'][:, -1]
+        map_pos = data['map_point']['position']
+
+        agent_batch = data['agent']['batch']
+        map_batch = data['map_point']['batch']
+
+        edge_index_a2a = knn_graph(x=pos, k=8, batch=agent_batch, loop=True)
+        edge_index_a2a = to_undirected(edge_index_a2a)
+
+        edge_index_m2a = radius(x=pos, y=map_pos, r=20, batch_x=agent_batch,
+                                batch_y=map_batch, max_num_neighbors=8)
+
+        data['agent']['edge_index'] = edge_index_a2a
+        data['map', 'to', 'agent']['edge_index'] = edge_index_m2a
+        return data
+    
+    def forward(self, data: HeteroData) -> tuple[torch.Tensor, torch.Tensor]:
+        data = self.post_process(data)
+        valid_mask = data['agent']['valid_mask']
+        trg = data['agent']['trg_pos']
+        """预测奖励值和未来轨迹"""
+
+        predicted_rewards = self.reward_model(data)
+
+        predicted_target = self.trajectory_predictor(data)
+
+        num_valid_steps = valid_mask.sum(-1)
+
+        norm = torch.linalg.norm(predicted_target - trg, dim=-1)
+
+        masked_norm = norm * valid_mask
+
+        scored_agents = num_valid_steps > 0
+
+        trajectory_loss = masked_norm[scored_agents].sum(-1) / num_valid_steps[scored_agents]
+
+        reward_loss = -predicted_rewards.mean()  # 最大化专家轨迹奖励
+
+        return reward_loss + trajectory_loss
+
+
+    def training_step(self, data: HeteroData):
+        loss, _, trg = self(data)
+        self.log("train_loss", loss, on_step=False, on_epoch=True,
+                 batch_size=trg.size(0), prog_bar=True)
+        return loss
+
+
+    def validation_step(self, data: HeteroData) -> None:
+        ma_mask = data['agent']['ma_mask']
+        ptr = data['agent']['ptr']
+
+        loss, pred, trg = self(data)
+
+        self.min_ade.update(pred, trg, mask=ma_mask)
+        self.min_fde.update(pred, trg, mask=ma_mask)
+        self.min_apde.update(pred, trg, mask=ma_mask)
+        self.mr.update(pred, trg, mask=ma_mask)
+        self.cr.update(pred, trg, ptr, mask=ma_mask)
+
+        metric_dict = {"val_loss": loss,
+                       "val_min_ade": self.min_ade,
+                       "val_min_fde": self.min_fde,
+                       "val_min_apde": self.min_apde,
+                       "val_mr": self.mr,
+                       "val_cr": self.cr}
+
+        self.log_dict(metric_dict, on_step=False, on_epoch=True,
+                      batch_size=trg.size(0), prog_bar=True)
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
