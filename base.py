@@ -22,6 +22,7 @@ from torch_geometric.nn import radius, knn_graph
 from torch_geometric.utils import to_undirected
 
 from models.IRLmodel import IRLRewardModel,IRLTrajectoryPredictor
+from SDD.sdd_functions import make_map_batch, make_map_batch_for_policy
 from metrics import MinADE, MinFDE, MinAPDE, MissRate, CollisionRate
 
 
@@ -34,6 +35,9 @@ class LitModel(pl.LightningModule):
         self.learning_rate = config["lr"]
 
         self.save_hyperparameters(ignore=['model'])
+
+        self.optimizer_pose = torch.optim.AdamW(self.trajectory_predictor.parameters(), lr=self.learning_rate)
+        self.optimizer_reward = torch.optim.AdamW(self.reward_model.parameters(), lr=self.learning_rate)
 
         self.min_ade = MinADE()
         self.min_fde = MinFDE()
@@ -113,13 +117,13 @@ class LitModel(pl.LightningModule):
 
 
 class IRLLitModel(pl.LightningModule):
-    def __init__(self, reward_model: nn.Module, trajectory_predictor: nn.Module, config: dict):
+    def __init__(self, model: nn.Module,config: dict):
         super().__init__()
-        self.reward_model = reward_model
-        self.trajectory_predictor = trajectory_predictor
+        self.model = model
         self.dataset = config["dataset"]
         self.max_epochs = config["epochs"]
         self.learning_rate = config["lr"]
+        self.grad_clip = config["grad_clip"]
 
         self.save_hyperparameters(ignore=['model'])
 
@@ -145,36 +149,34 @@ class IRLLitModel(pl.LightningModule):
         data['agent']['edge_index'] = edge_index_a2a
         data['map', 'to', 'agent']['edge_index'] = edge_index_m2a
         return data
-    
-    def forward(self, data: HeteroData) -> tuple[torch.Tensor, torch.Tensor]:
+
+    def forward(self, data: HeteroData) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         data = self.post_process(data)
         valid_mask = data['agent']['valid_mask']
         trg = data['agent']['trg_pos']
-        """预测奖励值和未来轨迹"""
 
-        predicted_rewards = self.reward_model(data)
+        xo = data['agent']['inp_pos']
+        xpo = data['agent']['trg_pos']
+        did = data['agent']['batch']
 
-        predicted_target = self.trajectory_predictor(data)
+        mo = make_map_batch(xo, did, self.dataset.map, self.hparams.map_size).to(self.device)
+        xoo_policy = self.model.sample(xo.to(self.device), mo, self.trajectory_predictor.init_state_enc)
+        mo_policy = make_map_batch_for_policy(xo, xo, xoo_policy, did, self.dataset.map, self.hparams.map_size).to(self.device)
 
-        num_valid_steps = valid_mask.sum(-1)
+        predictions_enc, predictions_dec, cost_pos_dec, cost_reward = model(xoo.to(device), mo, mo_policy, xpo.to(device))
 
-        norm = torch.linalg.norm(predicted_target - trg, dim=-1)
 
-        masked_norm = norm * valid_mask
-
-        scored_agents = num_valid_steps > 0
-
-        trajectory_loss = masked_norm[scored_agents].sum(-1) / num_valid_steps[scored_agents]
-
-        reward_loss = -predicted_rewards.mean()  # 最大化专家轨迹奖励
-
-        return reward_loss + trajectory_loss
+        return cost_pos_dec, cost_reward, predictions_dec,trg
 
 
     def training_step(self, data: HeteroData):
-        loss, _, trg = self(data)
-        self.log("train_loss", loss, on_step=False, on_epoch=True,
-                 batch_size=trg.size(0), prog_bar=True)
+        loss_pose, loss_reward,pred, trg = self(data)
+        self.log("train_pose_loss", loss_pose, on_step=False, on_epoch=True,
+             batch_size=trg.size(0), prog_bar=True)
+        self.log("train_reward_loss", loss_reward, on_step=False, on_epoch=True,
+             batch_size=trg.size(0), prog_bar=True)
+        loss = loss_pose + loss_reward
+
         return loss
 
 
@@ -182,7 +184,7 @@ class IRLLitModel(pl.LightningModule):
         ma_mask = data['agent']['ma_mask']
         ptr = data['agent']['ptr']
 
-        loss, pred, trg = self(data)
+        loss_pose,lose_reward, pred, trg = self(data)
 
         self.min_ade.update(pred, trg, mask=ma_mask)
         self.min_fde.update(pred, trg, mask=ma_mask)
@@ -190,7 +192,8 @@ class IRLLitModel(pl.LightningModule):
         self.mr.update(pred, trg, mask=ma_mask)
         self.cr.update(pred, trg, ptr, mask=ma_mask)
 
-        metric_dict = {"val_loss": loss,
+        metric_dict = {"val_loss_reward": loss_reward,
+                        "val_pose_loss": loss_pose,
                        "val_min_ade": self.min_ade,
                        "val_min_fde": self.min_fde,
                        "val_min_apde": self.min_apde,
@@ -201,4 +204,18 @@ class IRLLitModel(pl.LightningModule):
                       batch_size=trg.size(0), prog_bar=True)
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        optimizer_pose = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        optimizer_reward = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        return [
+            {
+                'optimizer': optimizer_pose,
+                'gradient_clip_val': self.grad_clip,  # 第一个优化器的梯度裁剪阈值
+                'gradient_clip_algorithm': 'norm'  # 使用 L2 范数裁剪
+            },
+            {
+                'optimizer': optimizer_reward,
+                'gradient_clip_val': self.grad_clip,  # 第二个优化器的梯度裁剪阈值
+                'gradient_clip_algorithm': 'norm'  # 使用 L2 范数裁剪
+            }
+        ]
+

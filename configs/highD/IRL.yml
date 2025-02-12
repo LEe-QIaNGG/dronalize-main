@@ -4,22 +4,33 @@ task: "motion forecasting"
 dataset: "highD"
 
 # Model Configuration
-model1:
-  class: "IRLRewardModel"
-  module: "models.IRLmodel"
-  num_inputs: 5
-  num_hidden: 32
-  num_outputs: 2
-  pred_hrz: 25
+# model1:
+#   class: "IRLRewardModel"
+#   module: "models.IRLmodel"
+#   num_inputs: 5
+#   num_hidden: 32
+#   num_outputs: 2
+#   pred_hrz: 25
 
-model2:
-  class: "IRLTrajectoryPredictor"
-  module: "models.IRLmodel"
+# model2:
+#   class: "IRLTrajectoryPredictor"
+#   module: "models.IRLmodel"
+
+#sdd的model
+model1:
+  class:"model"#模型的类名
+  module:"SDD.sdd_model"#模型的模块
+
 
 # Lightning Module Configuration
 litmodule:
   class: "IRLLitModel"
   module: "base"
+  input_dim: 5
+  pred_length: 12
+  map_size: 96
+  rnn_size: 256
+  dropout_rate: 0.2
 
 # Data Module Configuration
 datamodule:

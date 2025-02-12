@@ -43,8 +43,7 @@ LitModel = import_from_module(config["litmodule"]["module"], config["litmodule"]
 
 '''IRLload'''
 TorchModel = import_from_module(config["model1"]["module"], config["model1"]["class"])
-TorchModel2 = import_from_module(config["model2"]["module"], config["model2"]["class"])
-
+# TorchModel2 = import_from_module(config["model2"]["module"], config["model2"]["class"])
 
     
 ###method:base,IRL
@@ -102,8 +101,8 @@ def main(save_name: str,method="IRL") -> None:
         model = LitModel(net, config["training"])
     else:
         IRLRewardModel = TorchModel(config["model1"])
-        IRLTrajectoryPredictor = TorchModel2(config["model2"])  
-        model= LitModel(IRLRewardModel,IRLTrajectoryPredictor,config["training"])
+        # IRLTrajectoryPredictor = TorchModel2(config["model2"])  
+        model= LitModel(IRLRewardModel,config["training"])
     
 
     if args.root:
