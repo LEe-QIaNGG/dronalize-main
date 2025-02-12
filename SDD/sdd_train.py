@@ -6,11 +6,11 @@ import random
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-from tqdm import tqdm  # 用于进度条显示
+from tqdm import tqdm  
 
-from sdd_model import Model  # 假设你已经将模型转换为 PyTorch 实现
-from sdd_utils import SDDDataset  # 假设你已经将数据加载逻辑转换为 PyTorch 的 Dataset
-from sdd_functions import make_map_batch, make_map_batch_for_policy  # 假设这些函数已经适配 PyTorch
+from sdd_model import Model  
+from sdd_utils import SDDDataset  
+from sdd_functions import make_map_batch, make_map_batch_for_policy  
 
 
 def print_training_info(args):
