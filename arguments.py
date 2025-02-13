@@ -62,7 +62,7 @@ parser.add_argument('--dry-run', type=str_to_bool, default=True,
 parser.add_argument('--small-ds', type=str_to_bool, default=False,
                     const=True, nargs="?",
                     help='Use tiny versions of dataset for fast testing (default: False)')
-parser.add_argument('--config', type=str, default="test",
+parser.add_argument('--config', type=str, default="IRL",
                     help='config file path for experiment (default: example)')
 parser.add_argument('--root', type=str, default="",
                     help='root path for dataset (default: "")')

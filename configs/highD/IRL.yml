@@ -16,21 +16,23 @@ dataset: "highD"
 #   class: "IRLTrajectoryPredictor"
 #   module: "models.IRLmodel"
 
+
+
+
 #sdd的model
 model1:
-  class:"model"#模型的类名
-  module:"SDD.sdd_model"#模型的模块
-
-
-# Lightning Module Configuration
-litmodule:
-  class: "IRLLitModel"
-  module: "base"
+  class: "Model" #模型的类名
+  module: "SDD.sdd_model" #模型的模块
   input_dim: 5
   pred_length: 12
   map_size: 96
   rnn_size: 256
   dropout_rate: 0.2
+
+# Lightning Module Configuration
+litmodule:
+  class: "IRLLitModel"
+  module: "base"
 
 # Data Module Configuration
 datamodule:
@@ -46,3 +48,4 @@ training:
   dataset: "highD"
   epochs: 3
   lr: 0.0005
+  grad_clip: 1.5

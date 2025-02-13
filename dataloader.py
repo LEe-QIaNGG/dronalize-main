@@ -30,6 +30,7 @@ from torch_geometric.loader import DataLoader
 import torch_geometric.transforms as pyg_tf
 
 from datamodules.dataset import DroneDataset
+# from dataset import DroneDataset
 from utils import import_from_module
 
 
@@ -103,7 +104,7 @@ if __name__ == "__main__":
         return segments, alphas, myfade
 
 
-    config = {'root': '../data', 'name': 'highD', 'batch_size': 32,'transform':None}
+    config = {'root': './data', 'name': 'highD', 'batch_size': 32,'transform':None}
     args = Namespace(small_ds=False, num_workers=0, pin_memory=False, persistent_workers=False)
     dm = DroneDataModule(config, args)
     dm.setup()

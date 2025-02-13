@@ -126,7 +126,7 @@ class IRLLitModel(pl.LightningModule):
         self.grad_clip = config["grad_clip"]
 
         self.save_hyperparameters(ignore=['model'])
-
+        self.automatic_optimization = False
         self.min_ade = MinADE()
         self.min_fde = MinFDE()
         self.min_apde = MinAPDE()
@@ -134,6 +134,7 @@ class IRLLitModel(pl.LightningModule):
         self.cr = CollisionRate()
 
     def post_process(self, data: HeteroData) -> HeteroData:
+        #就是为了获取agent to agent的边索引和map to agent的边索引
         pos = data['agent']['inp_pos'][:, -1]
         map_pos = data['map_point']['position']
 
@@ -154,23 +155,43 @@ class IRLLitModel(pl.LightningModule):
         data = self.post_process(data)
         valid_mask = data['agent']['valid_mask']
         trg = data['agent']['trg_pos']
+        x = torch.cat([data['agent']['inp_pos'],
+                       data['agent']['inp_vel'],
+                       data['agent']['inp_yaw']], dim=-1)
+        map_to_agent_edge_index = data['map', 'to', 'agent']['edge_index']
+        map_pos = data['map_point']['position']
+        edge_index = data['agent']['edge_index']
+        
 
+
+
+        #xo, xp, xoo, xpo, did = batch 都是什么
         xo = data['agent']['inp_pos']
         xpo = data['agent']['trg_pos']
         did = data['agent']['batch']
-
+        #mo 是当前批次（batch）的地图信息，表示与输入轨迹相关的地图数据，即s_t
         mo = make_map_batch(xo, did, self.dataset.map, self.hparams.map_size).to(self.device)
-        xoo_policy = self.model.sample(xo.to(self.device), mo, self.trajectory_predictor.init_state_enc)
+        #xoo_policy 是模型编码器（encoder）输出的预测轨迹。
+        xoo_policy = self.model.sample(xo.to(self.device), mo, self.model.init_state_enc)
+        #mo_policy 是基于模型预测轨迹 xoo_policy 生成的地图信息，即/hat{s}_{t}
         mo_policy = make_map_batch_for_policy(xo, xo, xoo_policy, did, self.dataset.map, self.hparams.map_size).to(self.device)
-
-        predictions_enc, predictions_dec, cost_pos_dec, cost_reward = model(xoo.to(device), mo, mo_policy, xpo.to(device))
+        predictions_enc, predictions_dec, cost_pos_dec, cost_reward = self.model(xoo.to(self.device), mo, mo_policy, xpo.to(self.device))
 
 
         return cost_pos_dec, cost_reward, predictions_dec,trg
 
 
     def training_step(self, data: HeteroData):
+        optimizer_pose, optimizer_reward = self.optimizers()
+        
+        optimizer_pose.zero_grad()
+        optimizer_reward.zero_grad()
         loss_pose, loss_reward,pred, trg = self(data)
+        loss_pose.backward()
+        optimizer_pose.step()
+        loss_reward.backward()
+        optimizer_reward.step()
+
         self.log("train_pose_loss", loss_pose, on_step=False, on_epoch=True,
              batch_size=trg.size(0), prog_bar=True)
         self.log("train_reward_loss", loss_reward, on_step=False, on_epoch=True,

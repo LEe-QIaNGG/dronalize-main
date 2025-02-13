@@ -111,6 +111,15 @@ def train(args):
         # Training phase
         for batch in tqdm(train_loader, desc=f'Epoch {epoch + 1}/{args.num_epochs}'):
             xo, xp, xoo, xpo, did = batch
+            '''xo_batch：这是一个包含当前批次观察序列（observation trajectory）的列表。每个元素是一个形状为 (self.obs_length, 2) 的 numpy 数组，表示一个行人（pedestrian）的观察轨迹（位置序列）。
+
+xp_batch：这是一个包含当前批次预测序列（prediction trajectory）的列表。每个元素是一个形状为 (self.pred_length, 2) 的 numpy 数组，表示该行人在未来预测的轨迹。
+
+xoo_batch：这是一个包含当前批次观察序列的偏移量（offset）的列表。每个元素是一个形状为 (self.obs_length, 2) 的 numpy 数组，表示行人在观察期内每个时刻的运动偏移量（位置差分）。
+
+xpo_batch：这是一个包含当前批次预测序列的偏移量的列表。每个元素是一个形状为 (self.pred_length, 2) 的 numpy 数组，表示行人在预测期内的运动偏移量。
+
+did_batch：这是一个包含当前批次行人的 ID 列表。每个元素是一个形状为 (self.seq_length, 1) 的 numpy 数组，表示行人的唯一 ID。'''
             mo = make_map_batch(xo, did, train_dataset.map, args.map_size).to(device)
             xoo_policy = model.sample(xoo.to(device), mo, model.init_state_enc)
             mo_policy = make_map_batch_for_policy(xo, xoo, xoo_policy, did, train_dataset.map, args.map_size).to(device)

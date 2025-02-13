@@ -1,4 +1,4 @@
-from sdd_functions import *
+from SDD.sdd_functions import *
 
 import torch
 import torch.nn as nn
@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch.nn import init
 import torch.optim as optim
 import numpy as np
-from mamba_ssm import Mamba
+# from mamba_ssm import Mamba
 
 class Model(nn.Module):
     def __init__(self, config, infer=False):
@@ -37,20 +37,20 @@ class Model(nn.Module):
         self.fc_size_out = 1
         
         # Define network structure
-        # self.cell_enc = nn.LSTMCell(config['rnn_size'], config['rnn_size'])
-        # self.cell_dec = nn.LSTMCell(config['rnn_size'], config['rnn_size'])
-        self.cell_enc= Mamba(
-            d_model=16, # Model dimension d_model
-            d_state=16,  # SSM state expansion factor
-            d_conv=4,    # Local convolution width
-            expand=2,    # Block expansion factor
-        )
-        self.cell_dec= Mamba(
-            d_model=16, # Model dimension d_model
-            d_state=16,  # SSM state expansion factor
-            d_conv=4,    # Local convolution width
-            expand=2,    # Block expansion factor
-        )
+        self.cell_enc = nn.LSTMCell(config['rnn_size'], config['rnn_size'])
+        self.cell_dec = nn.LSTMCell(config['rnn_size'], config['rnn_size'])
+        # self.cell_enc= Mamba(
+        #     d_model=16, # Model dimension d_model
+        #     d_state=16,  # SSM state expansion factor
+        #     d_conv=4,    # Local convolution width
+        #     expand=2,    # Block expansion factor
+        # )
+        # self.cell_dec= Mamba(
+        #     d_model=16, # Model dimension d_model
+        #     d_state=16,  # SSM state expansion factor
+        #     d_conv=4,    # Local convolution width
+        #     expand=2,    # Block expansion factor
+        # )
         
         # Dropout layer
         self.dropout = nn.Dropout(p=config['dropout_rate'])

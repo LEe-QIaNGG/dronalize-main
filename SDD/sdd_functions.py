@@ -12,7 +12,6 @@ import random
 import tensorflow as tf
 import sys
 #import matplotlib.pyplot as plt
-import cv2
 import copy
 
 def _max(a,b):
@@ -28,9 +27,6 @@ def _min(a,b):
         return b
 
 def map_roi_extract(x, y, map, width, fidx):
-    """
-    从地图中提取以 (x, y) 为中心的 ROI 区域。
-    """
     size_row, size_col = map.shape[0], map.shape[1]
     x_center, y_center = int(x), int(y)
 
@@ -50,7 +46,7 @@ def map_roi_extract(x, y, map, width, fidx):
 
 def make_map_batch(xo_batch, did_batch, maps, target_map_size):
     """
-    为一批轨迹生成对应的 ROI 地图序列。
+    为一批轨迹生成对应的 ROI 地图序列
     """
     half_map_size = target_map_size // 2
     target_map = []
@@ -72,7 +68,7 @@ def make_map_batch(xo_batch, did_batch, maps, target_map_size):
 
 def make_map_batch_for_policy(xo_batch, xoo_batch, xoo_p_batch, did_batch, maps, target_map_size):
     """
-    为策略生成的轨迹生成对应的 ROI 地图序列。
+    为策略生成的轨迹生成对应�? ROI 地图序列�?
     """
     target_map = []
 
@@ -148,7 +144,7 @@ def shallow_convnet(input, w1, b1, w2, b2, w3, b3):
 
 def calculate_reward(fwr, fbr, fc_in, cur_in):
     """
-    计算奖励值。
+    计算奖励值�?
     """
     state_vec = torch.cat([fc_in, cur_in], dim=1)
     reward = torch.sigmoid(F.linear(state_vec, fwr, fbr))
@@ -157,7 +153,7 @@ def calculate_reward(fwr, fbr, fc_in, cur_in):
 
 def reshape_est_traj(x, batch_size, seq_length):
     """
-    将预测的轨迹重新整形为 (batch_size, seq_length, 2)。
+    将预测的轨迹重新整形�? (batch_size, seq_length, 2)�?
     """
     x_np = x.squeeze().cpu().numpy()
     x_reshape = [x_np[i * seq_length:(i + 1) * seq_length, :] for i in range(batch_size)]
@@ -166,7 +162,7 @@ def reshape_est_traj(x, batch_size, seq_length):
 
 def printProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='>', epoch=10):
     """
-    打印进度条。
+    打印进度条�?
     """
     str_format = "{0:." + str(decimals) + "f}"
     percents = str_format.format(100 * (iteration / float(total)))
