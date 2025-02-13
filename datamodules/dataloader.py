@@ -28,7 +28,9 @@ from torch_geometric.utils import subgraph
 from torch_geometric.data import Dataset
 from torch_geometric.loader import DataLoader
 import torch_geometric.transforms as pyg_tf
-
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from datamodules.dataset import DroneDataset
 # from dataset import DroneDataset
 from utils import import_from_module
@@ -175,32 +177,3 @@ if __name__ == "__main__":
 
     print(data)
     
-'''这个文件中的代码主要实现了一个名为 `DroneDataModule` 的数据模块，继承自 `LightningDataModule`，用于处理与无人机相关的数据集。以下是代码的主要功能和结构：
-
-1. **导入必要的库**：代码导入了多个库，包括 PyTorch、NumPy、Matplotlib 和 PyTorch Geometric 等，用于数据处理和可视化。
-
-2. **类定义**：定义了 `DroneDataModule` 类，负责加载和处理无人机数据集。
-
-3. **初始化方法 (`__init__`)**：
-   - 接收配置字典 `config` 和命名空间 `args` 作为参数。
-   - 从配置中提取根目录、数据集名称、批量大小等信息。
-   - 根据配置中的变换设置数据预处理。
-
-4. **数据集设置 (`setup` 方法)**：
-   - 根据不同的阶段（训练、验证、测试）加载数据集。
-   - 使用 `DroneDataset` 类来创建训练、验证和测试数据集的实例。
-
-5. **数据加载器方法**：
-   - `train_dataloader`、`val_dataloader` 和 `test_dataloader` 方法分别返回训练、验证和测试数据的加载器，设置了批量大小、是否打乱数据等参数。
-
-6. **主程序**：
-   - 在 `__main__` 块中，设置随机种子以确保可重复性。
-   - 定义了一个 `get_segments` 函数，用于生成线段和颜色渐变。
-   - 创建了一个 `DroneDataModule` 实例，设置数据集，并获取训练数据。
-   - 处理数据并使用 Matplotlib 绘制无人机轨迹和地图信息。
-
-7. **可视化**：
-   - 使用 Matplotlib 绘制无人机的轨迹和地图点，展示不同类型的边（如灰色和深灰色）以及无人机的位置和目标位置。
-
-总结来说，这段代码的主要目的是定义一个数据模块，用于加载、处理和可视化无人机数据集，支持训练、验证和测试阶段的数据处理。
-'''

@@ -162,7 +162,8 @@ class IRLLitModel(pl.LightningModule):
         map_pos = data['map_point']['position']
         edge_index = data['agent']['edge_index']
         xoo_policy = self.model.sample(x, map_pos, self.model.init_state_enc)
-        map_pos_policy =
+        #todo
+        map_pos_policy = map_pos
         predictions_enc, predictions_dec, cost_pos_dec, cost_reward = self.model(x, map_pos, map_pos_policy, trg)
 
         # #xo, xp, xoo, xpo, did = batch 都是什么
