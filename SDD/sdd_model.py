@@ -36,6 +36,9 @@ class Model(nn.Module):
         self.fc_size_in = self.conv_flat_size + self.input_dim
         self.fc_size_out = 1
         
+        # Initialize encoder initial state
+        self.init_state_enc = None  # Will be initialized in the forward pass
+
         # Define network structure
         self.cell_enc = nn.LSTMCell(config['rnn_size'], config['rnn_size'])
         self.cell_dec = nn.LSTMCell(config['rnn_size'], config['rnn_size'])
@@ -91,6 +94,18 @@ class Model(nn.Module):
                         nn.init.constant_(param, 0.0)
     
     def forward(self, gt_traj_enc, gt_map_enc, policy_map_enc, gt_traj_dec, output_keep_prob=1.0):
+        batch_size = gt_traj_enc.size(0)
+        # Initialize encoder initial state if not provided
+
+        if self.init_state_enc is None:
+
+            self.init_state_enc = (
+
+                torch.zeros(batch_size, self.args['rnn_size']),  # hx
+
+                torch.zeros(batch_size, self.args['rnn_size'])  # cx
+
+            )
         # Process map info
         conv_out_gt_enc = self.process_map(gt_map_enc)
         conv_out_policy_enc = self.process_map(policy_map_enc)
@@ -146,7 +161,7 @@ class Model(nn.Module):
         embedding_seqs = embedding_seqs.view(batch_size, seq_length, -1)
         return embedding_seqs
     
-    def rnn_encoder(self, embedding_seqs, gt_traj_enc, conv_out_gt_enc, conv_out_policy_enc):
+    def rnn_encoder(self, embedding_seqs, gt_traj_enc, conv_out_gt_enc, conv_out_policy_enc, sample=False):
         batch_size, seq_length, _ = embedding_seqs.size()
         predictions_enc = []
         cost_reward = 0.0
@@ -161,7 +176,8 @@ class Model(nn.Module):
             reward_gt_avg = 0.0
             reward_policy_avg = 0.0
             prev_pred_pose = torch.zeros(1, self.input_dim)
-            
+            hx, cx = self.init_state_enc
+
             for f in range(seq_length):
                 cur_embed_frm = cur_embed_seq[f].unsqueeze(0)
                 cur_gt_convout_frm = cur_gt_convout_seq[f].unsqueeze(0)
@@ -186,7 +202,9 @@ class Model(nn.Module):
             reward_policy_avg /= (seq_length - 2)
             cost_reward += -1.0 * torch.log(reward_gt_avg - reward_policy_avg + 1.0 + 1e-20)
             cost_policy += torch.log(reward_gt_avg - reward_policy_avg + 1.0 + 1e-20)
-        
+
+        if not sample:
+            self.init_state_enc = (hx, cx)
         return predictions_enc, cost_reward, cost_policy
     
     def rnn_decoder(self, gt_traj_enc, gt_traj_dec):
@@ -238,7 +256,7 @@ class Model(nn.Module):
             feed = {
                 'gt_traj_enc': xoo,
                 'gt_map_enc': mo,
-                'init_state_enc': init_state_enc,
+                # 'init_state_enc': init_state_enc,
                 'output_keep_prob': 1.0
             }
             pred_offset = self.forward(**feed)

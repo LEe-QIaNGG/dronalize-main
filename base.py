@@ -205,7 +205,7 @@ class IRLLitModel(pl.LightningModule):
         ma_mask = data['agent']['ma_mask']
         ptr = data['agent']['ptr']
 
-        loss_pose,lose_reward, pred, trg = self(data)
+        loss_pose,loss_reward, pred, trg = self(data)
 
         self.min_ade.update(pred, trg, mask=ma_mask)
         self.min_fde.update(pred, trg, mask=ma_mask)
