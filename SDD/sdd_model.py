@@ -162,6 +162,7 @@ class Model(nn.Module):
         return embedding_seqs
     
     def rnn_encoder(self, embedding_seqs, gt_traj_enc, conv_out_gt_enc, conv_out_policy_enc, sample=False):
+        # ‰»Î£∫x,x_hat,s,s_hat
         batch_size, seq_length, _ = embedding_seqs.size()
         predictions_enc = []
         cost_reward = 0.0
@@ -169,6 +170,7 @@ class Model(nn.Module):
         
         for b in range(batch_size):
             cur_embed_seq = embedding_seqs[b]
+            #reward related
             cur_gt_pose_seq = gt_traj_enc[b]
             cur_gt_convout_seq = conv_out_gt_enc[b]
             cur_policy_convout_seq = conv_out_policy_enc[b]

@@ -21,7 +21,7 @@ from torch_geometric.data import HeteroData
 from torch_geometric.nn import radius, knn_graph
 from torch_geometric.utils import to_undirected
 
-from models.IRLmodel import IRLRewardModel,IRLTrajectoryPredictor
+from models.IRLmodel import IRLRewardModel 
 from SDD.sdd_functions import make_map_batch, make_map_batch_for_policy
 from metrics import MinADE, MinFDE, MinAPDE, MissRate, CollisionRate
 
@@ -155,18 +155,32 @@ class IRLLitModel(pl.LightningModule):
         data = self.post_process(data)
         valid_mask = data['agent']['valid_mask']
         trg = data['agent']['trg_pos']
-        x = torch.cat([data['agent']['inp_pos'],
-                       data['agent']['inp_vel'],
-                       data['agent']['inp_yaw']], dim=-1)
-        map_to_agent_edge_index = data['map', 'to', 'agent']['edge_index']
-        map_pos = data['map_point']['position']
-        edge_index = data['agent']['edge_index']
-        xoo_policy = self.model.sample(x, map_pos, self.model.init_state_enc)
-        #todo
-        map_pos_policy = map_pos
-        predictions_enc, predictions_dec, cost_pos_dec, cost_reward = self.model(x, map_pos, map_pos_policy, trg)
+        # x = torch.cat([data['agent']['inp_pos'],
+        #                data['agent']['inp_vel'],
+        #                data['agent']['inp_yaw']], dim=-1)
+        # map_to_agent_edge_index = data['map', 'to', 'agent']['edge_index']
+        # map_pos = data['map_point']['position']
+        # edge_index = data['agent']['edge_index']
+        # xoo_policy,_,_ =  self.rnn_encoder(embedding_seqs_enc, gt_traj_enc, conv_out_gt_enc, conv_out_policy_enc)
+        # #todo
+        # map_pos_policy = map_pos
+        # predictions_enc, predictions_dec, cost_pos_dec, cost_reward = self.model(x, map_pos, map_pos_policy, trg)
 
-        return cost_pos_dec, cost_reward, predictions_dec,trg
+        # return cost_pos_dec, cost_reward, predictions_dec,trg
+        pred = self.model(data)
+
+        num_valid_steps = valid_mask.sum(-1)
+
+        norm = torch.linalg.norm(pred - trg, dim=-1)
+
+        masked_norm = norm * valid_mask
+
+        scored_agents = num_valid_steps > 0
+
+        summed_loss = masked_norm[scored_agents].sum(-1) / num_valid_steps[scored_agents]
+
+        loss = summed_loss.mean()
+        return loss, pred, trg
 
 
     def training_step(self, data: HeteroData):
