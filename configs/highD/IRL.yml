@@ -4,7 +4,7 @@ task: "motion forecasting"
 dataset: "highD"
 
 # Model Configuration
-model1:
+model:
   class: "IRLRewardModel"
   module: "models.IRLmodel"
   num_inputs: 5

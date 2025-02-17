@@ -35,10 +35,6 @@ class LitModel(pl.LightningModule):
         self.learning_rate = config["lr"]
 
         self.save_hyperparameters(ignore=['model'])
-
-        self.optimizer_pose = torch.optim.AdamW(self.trajectory_predictor.parameters(), lr=self.learning_rate)
-        self.optimizer_reward = torch.optim.AdamW(self.reward_model.parameters(), lr=self.learning_rate)
-
         self.min_ade = MinADE()
         self.min_fde = MinFDE()
         self.min_apde = MinAPDE()
@@ -126,6 +122,8 @@ class IRLLitModel(pl.LightningModule):
         self.grad_clip = config["grad_clip"]
 
         self.save_hyperparameters(ignore=['model'])
+        # self.optimizer_pose = torch.optim.AdamW(self.trajectory_predictor.parameters(), lr=self.learning_rate)
+        self.optimizer_reward = torch.optim.AdamW(self.model.parameters(), lr=self.learning_rate)
         self.automatic_optimization = False
         self.min_ade = MinADE()
         self.min_fde = MinFDE()
@@ -150,37 +148,25 @@ class IRLLitModel(pl.LightningModule):
         data['agent']['edge_index'] = edge_index_a2a
         data['map', 'to', 'agent']['edge_index'] = edge_index_m2a
         return data
+    
+    def compute_loss(pred, target, valid_mask):
+        norm_loss = torch.linalg.norm(pred - target, dim=-1)
+        masked_norm_loss = norm_loss * valid_mask
+        num_valid_steps = valid_mask.sum(-1)
+        scored_agents = num_valid_steps > 0
+        summed_loss = masked_norm_loss[scored_agents].sum(-1) / num_valid_steps[scored_agents]
+        loss = summed_loss.mean()
+        return loss
 
     def forward(self, data: HeteroData) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         data = self.post_process(data)
         valid_mask = data['agent']['valid_mask']
         trg = data['agent']['trg_pos']
-        # x = torch.cat([data['agent']['inp_pos'],
-        #                data['agent']['inp_vel'],
-        #                data['agent']['inp_yaw']], dim=-1)
-        # map_to_agent_edge_index = data['map', 'to', 'agent']['edge_index']
-        # map_pos = data['map_point']['position']
-        # edge_index = data['agent']['edge_index']
-        # xoo_policy,_,_ =  self.rnn_encoder(embedding_seqs_enc, gt_traj_enc, conv_out_gt_enc, conv_out_policy_enc)
-        # #todo
-        # map_pos_policy = map_pos
-        # predictions_enc, predictions_dec, cost_pos_dec, cost_reward = self.model(x, map_pos, map_pos_policy, trg)
+        pred,r_hat, r_groundTruth = self.model(data)
 
-        # return cost_pos_dec, cost_reward, predictions_dec,trg
-        pred = self.model(data)
-
-        num_valid_steps = valid_mask.sum(-1)
-
-        norm = torch.linalg.norm(pred - trg, dim=-1)
-
-        masked_norm = norm * valid_mask
-
-        scored_agents = num_valid_steps > 0
-
-        summed_loss = masked_norm[scored_agents].sum(-1) / num_valid_steps[scored_agents]
-
-        loss = summed_loss.mean()
-        return loss, pred, trg
+        loss_pose = self.compute_loss(pred, trg, valid_mask)
+        loss_reward = self.compute_loss(r_hat, r_groundTruth)
+        return loss_pose,loss_reward, pred, trg
 
 
     def training_step(self, data: HeteroData):
@@ -188,7 +174,7 @@ class IRLLitModel(pl.LightningModule):
         
         optimizer_pose.zero_grad()
         optimizer_reward.zero_grad()
-        loss_pose, loss_reward,pred, trg = self(data)
+        loss_pose,loss_reward, pred, trg = self(data)
         loss_pose.backward()
         optimizer_pose.step()
         loss_reward.backward()

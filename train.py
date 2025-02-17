@@ -39,15 +39,18 @@ LitDataModule = import_from_module(config["datamodule"]["module"], config["datam
 LitModel = import_from_module(config["litmodule"]["module"], config["litmodule"]["class"])
 
 '''base load'''
-# TorchModel = import_from_module(config["model"]["module"], config["model"]["class"])
+TorchModel = import_from_module(config["model"]["module"], config["model"]["class"])
+print('----------------------------------------------------')
+print(f'\nLoaded model: {config["model"]["class"]} \n')
+print('----------------------------------------------------')
+print(f'\nLoaded datamodule: {config["datamodule"]["class"]} \n')
+print('----------------------------------------------------')
+print(f'\nLoaded litmodule: {config["litmodule"]["class"]} \n')
 
-'''IRLload'''
-TorchModel = import_from_module(config["model1"]["module"], config["model1"]["class"])
-# TorchModel2 = import_from_module(config["model2"]["module"], config["model2"]["class"])
+
 
     
-###method:base,IRL
-def main(save_name: str,method="IRL") -> None:
+def main(save_name: str) -> None:
     ds = config["dataset"]
     ckpt_path = Path("saved_models") / ds / save_name
 
@@ -96,13 +99,9 @@ def main(save_name: str,method="IRL") -> None:
         logger = WandbLogger(project="dronalize", name=run_name)
 
     # Setup model, datamodule and trainer
-    if method=="base":
-        net = TorchModel(config["model"])   
-        model = LitModel(net, config["training"])
-    else:
-        IRLRewardModel = TorchModel(config["model1"])
-        # IRLTrajectoryPredictor = TorchModel2(config["model2"])  
-        model= LitModel(IRLRewardModel,config["training"])
+    net = TorchModel(config["model"])   
+    model = LitModel(net, config["training"])
+
     
 
     if args.root:
@@ -126,10 +125,8 @@ def main(save_name: str,method="IRL") -> None:
 
 if __name__ == "__main__":
     seed_everything(args.seed, workers=True)
-    if config["experiment_name"]=="IRL":
-        mdl_name = config["model1"]["class"]
-    else:
-        mdl_name = config["model"]["class"]
+
+    mdl_name = config["model"]["class"]
     ds_name = config["dataset"]
     add_name = f"-{args.add_name}" if args.add_name else ""
 
